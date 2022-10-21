@@ -12,6 +12,14 @@ from models import db, Usuario, Favoritos, Planeta, Personaje
 import json
 #from models import Person
 
+
+from flask_jwt_extended import create_access_token
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+from flask_jwt_extended import JWTManager
+
+
+
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
@@ -191,6 +199,34 @@ def favorite_planet(user_id, planet_id):
         return jsonify(response_body), 400
 
 
+# Setup the Flask-JWT-Extended extension
+app.config["JWT_SECRET_KEY"] = "super-secret"  # Change this!
+jwt = JWTManager(app)
+
+@app.route("/login", methods=["POST"])
+def login():
+
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
+    # Query to get user info
+    print(email,password)
+    user = Usuario.query.filter_by(email=email).first()
+    print(user.serialize())
+    ## If "user" query brings no data, then user doesn't exist
+    if user is None:
+        return jsonify({"msg":"User doesn't exist"}), 404
+    # Compared email and password, if one of them is not correct then it rejects the login attempt
+    # if email != user.email or password != user.password:
+    if email is None or password is None or user is None:
+        return jsonify({"msg": "Bad email or password"}), 401
+    # Grants a token if login was successful
+    access_token = create_access_token(identity=email)
+    response_body = {
+            # Shows the token and the user info
+            "msg":access_token,
+            "user": user.serialize()
+        }
+    return jsonify(response_body), 200
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
